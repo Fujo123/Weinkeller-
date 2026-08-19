@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Weinkeller — Bestandsbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#13161A;
+    --bg-panel:#1B1F24;
+    --bg-panel-2:#20252B;
+    --line:#2E343B;
+    --burgundy:#7C2233;
+    --burgundy-light:#9C3245;
+    --gold:#C9A24D;
+    --gold-dim:#8A7238;
+    --cream:#EDE6D8;
+    --muted:#8B929B;
+    --green:#5E8A5A;
+    --green-bg:#1D2A1D;
+    --red:#B0554F;
+    --red-bg:#2A1D1C;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg-deep);
+    color:var(--cream);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  ::selection{background:var(--gold-dim);color:var(--cream);}
+  button{font-family:inherit;cursor:pointer;}
+  input,select{font-family:inherit;}
+
+  /* Header */
+  header{
+    padding:28px 20px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#181B20,#13161A);
+    position:sticky;top:0;z-index:20;
+  }
+  .header-inner{max-width:900px;margin:0 auto;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:6px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(28px,6vw,40px);
+    margin:0 0 14px 0;
+    letter-spacing:-0.01em;
+  }
+  .stats{
+    display:flex;gap:22px;flex-wrap:wrap;
+  }
+  .stat{
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .stat .num{font-size:20px;color:var(--cream);font-weight:600;}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+
+  /* Toolbar */
+  .toolbar{
+    max-width:900px;margin:20px auto 0;padding:0 20px;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  }
+  .toolbar input[type=text]{
+    flex:1;min-width:160px;
+    background:var(--bg-panel);border:1px solid var(--line);
+    color:var(--cream);padding:11px 14px;border-radius:var(--radius);
+    font-size:14px;outline:none;
+  }
+  .toolbar input[type=text]:focus{border-color:var(--gold-dim);}
+  .toolbar select{
+    background:var(--bg-panel);border:1px solid var(--line);
+    color:var(--cream);padding:11px 12px;border-radius:var(--radius);
+    font-size:14px;outline:none;
+  }
+  .btn-primary{
+    background:var(--burgundy);color:var(--cream);border:none;
+    padding:12px 18px;border-radius:var(--radius);
+    font-size:14px;font-weight:600;white-space:nowrap;
+    transition:background .15s;
+  }
+  .btn-primary:hover{background:var(--burgundy-light);}
+  .btn-primary:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--gold);outline-offset:2px;
+  }
+
+  /* List */
+  .list{max-width:900px;margin:22px auto;padding:0 20px;display:flex;flex-direction:column;gap:10px;}
+  .empty{
+    text-align:center;padding:60px 20px;color:var(--muted);
+  }
+  .empty .stamp{
+    font-family:'Fraunces',serif;font-size:22px;color:var(--cream);margin-bottom:8px;
+  }
+
+  .card{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    display:grid;
+    grid-template-columns:56px 1fr auto;
+    gap:16px;
+    align-items:center;
+  }
+  .vintage-stamp{
+    width:56px;height:56px;border-radius:50%;
+    border:2px solid var(--gold-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:14px;font-weight:600;color:var(--gold);
+    flex-shrink:0;
+  }
+  .wine-name{
+    font-family:'Fraunces',serif;font-size:19px;font-weight:600;
+    margin:0 0 4px 0;color:var(--cream);
+  }
+  .wine-meta{
+    font-size:13px;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:4px 10px;
+  }
+  .wine-meta span:not(:last-child)::after{content:"·";margin-left:10px;color:var(--line);}
+
+  .stock-col{
+    display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  }
+  .stock-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:22px;font-weight:600;
+  }
+  .stock-count.low{color:var(--red);}
+  .stock-count.ok{color:var(--cream);}
+  .stock-count.empty-stock{color:var(--muted);}
+  .stock-unit{font-size:11px;color:var(--muted);font-weight:400;letter-spacing:.05em;}
+  .stock-actions{display:flex;gap:6px;}
+  .icon-btn{
+    width:34px;height:34px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg-panel-2);color:var(--cream);
+    display:flex;align-items:center;justify-content:center;font-size:17px;
+    transition:border-color .15s;
+  }
+  .icon-btn:hover{border-color:var(--gold-dim);}
+  .icon-btn.remove:hover{border-color:var(--red);color:var(--red);}
+  .icon-btn.add:hover{border-color:var(--green);color:var(--green);}
+  .card-footer{
+    grid-column:1 / -1;
+    display:flex;justify-content:space-between;align-items:center;
+    border-top:1px solid var(--line);margin-top:4px;padding-top:10px;
+    font-size:12px;
+  }
+  .link-btn{
+    background:none;border:none;color:var(--muted);font-size:12px;
+    text-decoration:underline;padding:0;
+  }
+  .link-btn:hover{color:var(--gold);}
+  .history-panel{
+    grid-column:1 / -1;
+    background:var(--bg-panel-2);border-radius:8px;padding:10px 14px;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);
+    display:none;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;
+  }
+  .history-panel.open{display:flex;}
+  .history-row{display:flex;justify-content:space-between;gap:10px;}
+  .history-row .hz{color:var(--green);}
+  .history-row .he{color:var(--red);}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(10,11,13,.72);
+    display:none;align-items:flex-end;justify-content:center;z-index:100;
+  }
+  .overlay.open{display:flex;}
+  @media(min-width:640px){ .overlay{align-items:center;} }
+  .modal{
+    background:var(--bg-panel);border:1px solid var(--line);
+    border-radius:16px 16px 0 0;
+    width:100%;max-width:460px;
+    padding:24px 22px 28px;
+    max-height:88vh;overflow-y:auto;
+  }
+  @media(min-width:640px){ .modal{border-radius:14px;} }
+  .modal h2{
+    font-family:'Fraunces',serif;font-size:22px;margin:0 0 18px;color:var(--cream);
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;font-size:12px;color:var(--muted);margin-bottom:6px;
+    text-transform:uppercase;letter-spacing:.06em;
+  }
+  .field input{
+    width:100%;background:var(--bg-panel-2);border:1px solid var(--line);
+    color:var(--cream);padding:11px 12px;border-radius:8px;font-size:15px;outline:none;
+  }
+  .field input:focus{border-color:var(--gold-dim);}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .modal-actions{display:flex;gap:10px;margin-top:20px;}
+  .btn-secondary{
+    background:none;border:1px solid var(--line);color:var(--cream);
+    padding:12px 16px;border-radius:8px;font-size:14px;flex:1;
+  }
+  .btn-secondary:hover{border-color:var(--muted);}
+  .modal-actions .btn-primary{flex:1;}
+  .qty-stepper{
+    display:flex;align-items:center;gap:14px;justify-content:center;margin:6px 0 4px;
+  }
+  .qty-stepper button{
+    width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
+    background:var(--bg-panel-2);color:var(--cream);font-size:20px;
+  }
+  .qty-stepper .qty-val{
+    font-family:'IBM Plex Mono',monospace;font-size:28px;min-width:52px;text-align:center;
+  }
+  .modal-sub{color:var(--muted);font-size:13px;margin:-8px 0 16px;}
+  .type-toggle{display:flex;gap:8px;margin-bottom:16px;}
+  .type-toggle button{
+    flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg-panel-2);color:var(--muted);font-size:13px;font-weight:600;
+  }
+  .type-toggle button.active-in{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+  .type-toggle button.active-out{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+
+  .lookup-field{margin-top:-2px;}
+  .lookup-btn{
+    width:100%;font-size:13px;padding:11px 14px;
+    border-color:var(--gold-dim);color:var(--gold);
+  }
+  .lookup-btn:hover{border-color:var(--gold);background:var(--bg-panel-2);}
+  .lookup-btn:disabled{opacity:.55;cursor:default;}
+  .lookup-status{
+    font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;
+  }
+  .lookup-status.error{color:var(--red);}
+  .lookup-status.success{color:var(--green);}
+
+  .wine-extra{
+    display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--gold);
+    margin-top:6px;font-family:'IBM Plex Mono',monospace;
+  }
+
+  .fab-add{
+    position:fixed;right:20px;bottom:24px;
+    width:56px;height:56px;border-radius:50%;
+    background:var(--burgundy);color:var(--cream);border:none;
+    font-size:26px;box-shadow:0 6px 18px rgba(0,0,0,.4);
+    display:none;align-items:center;justify-content:center;z-index:30;
+  }
+  @media(max-width:520px){ .fab-add{display:flex;} .toolbar .btn-primary.desktop-add{display:none;} }
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--bg-panel);border:1px solid var(--line);
+    color:var(--cream);padding:13px 18px;border-radius:10px;
+    font-size:13px;max-width:90vw;text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;
+    z-index:200;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{border-color:var(--red);color:var(--red);}
+  .toast.success{border-color:var(--green);color:var(--green);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="eyebrow">Bestandsbuch</div>
+    <h1>Weinkeller</h1>
+    <div class="stats">
+      <div class="stat"><div class="num" id="statBottles">0</div><div class="lbl">Flaschen</div></div>
+      <div class="stat"><div class="num" id="statLabels">0</div><div class="lbl">Positionen</div></div>
+      <div class="stat"><div class="num" id="statCountries">0</div><div class="lbl">Länder</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Suche nach Weingut, Sorte, Land…">
+  <select id="sortSelect">
+    <option value="name">Sortierung: Weingut</option>
+    <option value="jahrgang">Sortierung: Jahrgang</option>
+    <option value="bestand">Sortierung: Bestand</option>
+    <option value="land">Sortierung: Land</option>
+  </select>
+  <button class="btn-primary desktop-add" id="openAddBtn">+ Wein erfassen</button>
+  <button class="btn-secondary" id="importBtn" type="button" title="Bestand aus XLS/XLSX/CSV importieren" style="flex:0 0 auto;width:auto;">📥 Import</button>
+  <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none">
+</div>
+
+<div class="list" id="wineList"></div>
+
+<div class="toast" id="toast"></div>
+
+<button class="fab-add" id="fabAdd" aria-label="Wein erfassen">+</button>
+
+<!-- Add / Edit Wine Modal -->
+<div class="overlay" id="wineModalOverlay">
+  <div class="modal">
+    <h2 id="wineModalTitle">Wein erfassen</h2>
+    <div class="field">
+      <label for="fWeingut">Weingut</label>
+      <input type="text" id="fWeingut" placeholder="z. B. Château Margaux">
+    </div>
+    <div class="field">
+      <label for="fName">Weinname</label>
+      <input type="text" id="fName" placeholder="z. B. Grand Vin">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fLand">Land</label>
+        <input type="text" id="fLand" placeholder="z. B. Frankreich">
+      </div>
+      <div class="field">
+        <label for="fJahrgang">Jahrgang</label>
+        <input type="text" id="fJahrgang" placeholder="z. B. 2018" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fSorte">Sorte</label>
+      <input type="text" id="fSorte" placeholder="z. B. Cabernet Sauvignon">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fPreis">Preis (€)</label>
+        <input type="text" id="fPreis" inputmode="decimal" placeholder="z. B. 45.90">
+      </div>
+      <div class="field">
+        <label for="fTrinkzeitraum">Trinkreife</label>
+        <input type="text" id="fTrinkzeitraum" placeholder="z. B. 2026–2034">
+      </div>
+    </div>
+    <div class="field lookup-field">
+      <button class="btn-secondary lookup-btn" id="lookupBtn" type="button">🔍 Preis &amp; Trinkreife automatisch ermitteln</button>
+      <div class="lookup-status" id="lookupStatus"></div>
+    </div>
+    <div class="field" id="fBestandWrap">
+      <label for="fBestand">Anfangsbestand (Flaschen)</label>
+      <input type="text" id="fBestand" inputmode="numeric" placeholder="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cancelWineBtn">Abbrechen</button>
+      <button class="btn-primary" id="saveWineBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Movement Modal (Zugang / Entnahme) -->
+<div class="overlay" id="moveModalOverlay">
+  <div class="modal">
+    <h2 id="moveModalTitle">Bestand ändern</h2>
+    <div class="modal-sub" id="moveModalSub"></div>
+    <div class="type-toggle">
+      <button id="moveTypeIn" type="button">Zugang</button>
+      <button id="moveTypeOut" type="button">Entnahme</button>
+    </div>
+    <div class="qty-stepper">
+      <button id="qtyMinus" type="button">−</button>
+      <div class="qty-val" id="qtyVal">1</div>
+      <button id="qtyPlus" type="button">+</button>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label for="fMoveNote">Notiz (optional)</label>
+      <input type="text" id="fMoveNote" placeholder="z. B. Geburtstagsessen, neue Lieferung…">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cancelMoveBtn">Abbrechen</button>
+      <button class="btn-primary" id="confirmMoveBtn">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  let wines = [];
+  let movements = [];
+  let editingWineId = null;
+  let moveContext = { wineId: null, type: 'in', qty: 1 };
+  let openHistoryIds = new Set();
+
+  const $ = (id) => document.getElementById(id);
+
+  async function loadData(){
+    try{
+      const w = localStorage.getItem('weinkeller_wines');
+      wines = w ? JSON.parse(w) : [];
+    }catch(e){ wines = []; }
+    try{
+      const m = localStorage.getItem('weinkeller_movements');
+      movements = m ? JSON.parse(m) : [];
+    }catch(e){ movements = []; }
+    render();
+  }
+
+  async function saveWines(){
+    try{ localStorage.setItem('weinkeller_wines', JSON.stringify(wines)); }
+    catch(e){ console.error('Fehler beim Speichern der Weine', e); showToast('Speichern fehlgeschlagen — Speicher des Browsers evtl. voll.', 'error'); }
+  }
+  async function saveMovements(){
+    try{ localStorage.setItem('weinkeller_movements', JSON.stringify(movements)); }
+    catch(e){ console.error('Fehler beim Speichern der Bewegungen', e); }
+  }
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function currentFiltered(){
+    const q = $('searchInput').value.trim().toLowerCase();
+    let list = wines.filter(w=>{
+      if(!q) return true;
+      return (w.weingut+' '+(w.name||'')+' '+w.land+' '+w.sorte+' '+w.jahrgang).toLowerCase().includes(q);
+    });
+    const sort = $('sortSelect').value;
+    list.sort((a,b)=>{
+      if(sort==='jahrgang') return (b.jahrgang||'').localeCompare(a.jahrgang||'', undefined, {numeric:true});
+      if(sort==='bestand') return b.bestand - a.bestand;
+      if(sort==='land') return (a.land||'').localeCompare(b.land||'');
+      return (a.weingut||'').localeCompare(b.weingut||'');
+    });
+    return list;
+  }
+
+  function render(){
+    const list = currentFiltered();
+    const totalBottles = wines.reduce((s,w)=>s+w.bestand,0);
+    const countries = new Set(wines.map(w=>w.land).filter(Boolean));
+    $('statBottles').textContent = totalBottles;
+    $('statLabels').textContent = wines.length;
+    $('statCountries').textContent = countries.size;
+
+    const container = $('wineList');
+    container.innerHTML = '';
+
+    if(wines.length === 0){
+      container.innerHTML = `<div class="empty">
+        <div class="stamp">Der Keller ist noch leer</div>
+        <div>Erfasse deine erste Flasche über „Wein erfassen“.</div>
+      </div>`;
+      return;
+    }
+    if(list.length === 0){
+      container.innerHTML = `<div class="empty">
+        <div class="stamp">Keine Treffer</div>
+        <div>Passe die Suche an, um Ergebnisse zu sehen.</div>
+      </div>`;
+      return;
+    }
+
+    list.forEach(w=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      const stockClass = w.bestand === 0 ? 'empty-stock' : (w.bestand <= 2 ? 'low' : 'ok');
+      const isOpen = openHistoryIds.has(w.id);
+      const hist = movements.filter(m=>m.wineId===w.id).sort((a,b)=>b.ts-a.ts).slice(0,10);
+
+      card.innerHTML = `
+        <div class="vintage-stamp">${escapeHtml(w.jahrgang || '—')}</div>
+        <div>
+          <p class="wine-name">${escapeHtml(w.name || w.weingut || 'Unbenannter Wein')}</p>
+          <div class="wine-meta">
+            ${w.name && w.weingut ? `<span>${escapeHtml(w.weingut)}</span>` : ''}
+            <span>${escapeHtml(w.sorte || 'Sorte unbekannt')}</span>
+            <span>${escapeHtml(w.land || 'Land unbekannt')}</span>
+          </div>
+          ${(w.preis || w.trinkzeitraum) ? `<div class="wine-extra">
+            ${w.preis ? `<span>${escapeHtml(w.preis)} €</span>` : ''}
+            ${w.trinkzeitraum ? `<span>Trinkreife ${escapeHtml(w.trinkzeitraum)}</span>` : ''}
+          </div>` : ''}
+        </div>
+        <div class="stock-col">
+          <div class="stock-count ${stockClass}">${w.bestand}<span class="stock-unit"> Fl.</span></div>
+          <div class="stock-actions">
+            <button class="icon-btn remove" data-action="out" data-id="${w.id}" title="Entnahme" aria-label="Entnahme">−</button>
+            <button class="icon-btn add" data-action="in" data-id="${w.id}" title="Zugang" aria-label="Zugang">+</button>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="link-btn" data-action="history" data-id="${w.id}">${isOpen ? 'Verlauf ausblenden' : 'Verlauf anzeigen'}</button>
+          <div style="display:flex;gap:14px;">
+            <button class="link-btn" data-action="edit" data-id="${w.id}">Bearbeiten</button>
+            <button class="link-btn" data-action="delete" data-id="${w.id}">Löschen</button>
+          </div>
+        </div>
+        <div class="history-panel ${isOpen ? 'open' : ''}">
+          ${hist.length === 0 ? '<span>Noch keine Bewegungen erfasst.</span>' : hist.map(h=>`
+            <div class="history-row">
+              <span class="${h.type==='in'?'hz':'he'}">${h.type==='in'?'+':'−'}${h.qty} · ${h.type==='in'?'Zugang':'Entnahme'}${h.note ? ' — '+escapeHtml(h.note) : ''}</span>
+              <span>${formatDate(h.ts)}</span>
+            </div>`).join('')}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function formatDate(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  let toastTimer = null;
+  function showToast(msg, kind){
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (kind ? ' '+kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 5000);
+  }
+
+  function normalizeHeader(s){
+    return String(s).toLowerCase().trim().replace(/[^a-zäöüß0-9]/g,'');
+  }
+
+  const COLUMN_ALIASES = {
+    weingut: ['weingut','winery','produzent','hersteller','erzeuger'],
+    name: ['name','weinname','wein','bezeichnung','produkt'],
+    land: ['land','country','herkunftsland','herkunft'],
+    sorte: ['sorte','rebsorte','variety','grape','traube'],
+    jahrgang: ['jahrgang','jahr','vintage'],
+    bestand: ['bestand','anzahl','flaschen','menge','stock','quantity','anzahlflaschen','stückzahl'],
+    preis: ['preis','price','eur','euro','preiseur','preiseuro','preiseurstück'],
+    trinkzeitraum: ['trinkreife','trinkzeitraum','trinkfenster','drinkingwindow','trinkspanne']
+  };
+
+  function buildColumnMap(sampleRow){
+    const headers = Object.keys(sampleRow);
+    const map = {};
+    headers.forEach(h=>{
+      const n = normalizeHeader(h);
+      for(const key in COLUMN_ALIASES){
+        if(map[key]) continue;
+        if(COLUMN_ALIASES[key].some(alias => normalizeHeader(alias) === n)){
+          map[key] = h;
+        }
+      }
+    });
+    return map;
+  }
+
+  async function handleImportFile(e){
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+
+    if(typeof XLSX === 'undefined'){
+      showToast('Import-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.', 'error');
+      return;
+    }
+
+    try{
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+      if(!rows.length){
+        showToast('Die Datei enthält keine Datenzeilen.', 'error');
+        return;
+      }
+
+      const colMap = buildColumnMap(rows[0]);
+      if(!colMap.weingut && !colMap.name && !colMap.sorte){
+        showToast('Konnte keine passenden Spalten erkennen (z. B. Weingut, Name, Sorte). Bitte Spaltenüberschriften prüfen.', 'error');
+        return;
+      }
+
+      let imported = 0, skipped = 0;
+      const get = (row, key) => {
+        const col = colMap[key];
+        if(!col) return '';
+        const v = row[col];
+        return v === undefined || v === null ? '' : String(v).trim();
+      };
+
+      rows.forEach(row=>{
+        const weingut = get(row,'weingut');
+        const name = get(row,'name');
+        const sorte = get(row,'sorte');
+        const land = get(row,'land');
+        const jahrgang = get(row,'jahrgang');
+        const preis = get(row,'preis');
+        const trinkzeitraum = get(row,'trinkzeitraum');
+        const bestand = Math.max(0, parseInt(get(row,'bestand'), 10) || 0);
+
+        if(!weingut && !name && !sorte){ skipped++; return; }
+
+        const newWine = { id: uid(), weingut, name, land, jahrgang, sorte, preis, trinkzeitraum, bestand };
+        wines.push(newWine);
+        if(bestand > 0){
+          movements.push({ id: uid(), wineId: newWine.id, type:'in', qty: bestand, note:'Import aus Datei', ts: Date.now() });
+        }
+        imported++;
+      });
+
+      await saveWines();
+      await saveMovements();
+      render();
+
+      if(imported === 0){
+        showToast('Keine gültigen Zeilen zum Importieren gefunden.', 'error');
+      } else {
+        showToast(`${imported} Wein(e) importiert${skipped ? ', ' + skipped + ' Zeile(n) übersprungen' : ''}.`, 'success');
+      }
+    }catch(err){
+      console.error('Import fehlgeschlagen', err);
+      showToast('Import fehlgeschlagen. Bitte Dateiformat prüfen (.xlsx, .xls, .csv).', 'error');
+    }
+  }
+
+  // ---- Wine modal ----
+  function openWineModal(wine){
+    editingWineId = wine ? wine.id : null;
+    $('wineModalTitle').textContent = wine ? 'Wein bearbeiten' : 'Wein erfassen';
+    $('fWeingut').value = wine ? wine.weingut : '';
+    $('fName').value = wine ? wine.name : '';
+    $('fLand').value = wine ? wine.land : '';
+    $('fJahrgang').value = wine ? wine.jahrgang : '';
+    $('fSorte').value = wine ? wine.sorte : '';
+    $('fPreis').value = wine ? (wine.preis || '') : '';
+    $('fTrinkzeitraum').value = wine ? (wine.trinkzeitraum || '') : '';
+    setLookupStatus('', '');
+    $('fBestand').value = wine ? wine.bestand : '';
+    $('fBestandWrap').style.display = wine ? 'none' : 'block';
+    $('wineModalOverlay').classList.add('open');
+    setTimeout(()=>$('fWeingut').focus(), 50);
+  }
+  function closeWineModal(){ $('wineModalOverlay').classList.remove('open'); }
+
+  function setLookupStatus(text, kind){
+    const el = $('lookupStatus');
+    el.textContent = text;
+    el.className = 'lookup-status' + (kind ? ' '+kind : '');
+  }
+
+  async function lookupWineInfo(){
+    const weingut = $('fWeingut').value.trim();
+    const name = $('fName').value.trim();
+    const land = $('fLand').value.trim();
+    const jahrgang = $('fJahrgang').value.trim();
+    const sorte = $('fSorte').value.trim();
+
+    if(!weingut && !name){
+      setLookupStatus('Bitte zuerst Weingut oder Weinname angeben.', 'error');
+      return;
+    }
+
+    const btn = $('lookupBtn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = '🔍 Suche läuft…';
+    setLookupStatus('Durchsuche aktuelle Weinhändler- und Bewertungsquellen…', '');
+
+    const beschreibung = [name, weingut, sorte, jahrgang, land].filter(Boolean).join(', ');
+    const prompt = `Du bist ein Wein-Rechercheassistent. Recherchiere im Internet zu folgendem Wein: ${beschreibung}.
+
+Ermittle zwei Dinge:
+1. Einen realistischen ungefähren Verkaufspreis für eine 0,75l-Flasche in Euro, basierend auf aktuellen Angeboten von Weinhändlern (bevorzugt deutschsprachiger Raum).
+2. Den von Kritikern/Produzenten empfohlenen besten Trinkzeitraum (Trinkreife) als Jahresspanne, z. B. "2026–2034".
+
+Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Objekt, ohne Einleitung, ohne Erklärung, ohne Markdown-Codeblock, exakt in diesem Format:
+{"preis": "45.90", "trinkzeitraum": "2026-2034", "quelle": "kurze Angabe der Quelle"}
+
+Falls du für einen Wert keine verlässlichen Daten findest, setze ihn auf null.`;
+
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }]
+        })
+      });
+      if(!response.ok) throw new Error('API-Fehler ' + response.status);
+      const data = await response.json();
+      const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
+      const combined = textBlocks.join('\n').trim();
+      const clean = combined.replace(/```json|```/g, '').trim();
+      const match = clean.match(/\{[\s\S]*\}/);
+      if(!match) throw new Error('Keine strukturierten Daten in der Antwort gefunden.');
+      const parsed = JSON.parse(match[0]);
+
+      let found = [];
+      if(parsed.preis){ $('fPreis').value = parsed.preis; found.push('Preis'); }
+      if(parsed.trinkzeitraum){ $('fTrinkzeitraum').value = parsed.trinkzeitraum; found.push('Trinkreife'); }
+
+      if(found.length === 0){
+        setLookupStatus('Keine verlässlichen Daten gefunden. Bitte manuell eintragen.', 'error');
+      } else {
+        setLookupStatus(`${found.join(' und ')} übernommen${parsed.quelle ? ' — Quelle: ' + parsed.quelle : ''}. Bitte prüfen.`, 'success');
+      }
+    } catch(err){
+      console.error('Lookup fehlgeschlagen', err);
+      setLookupStatus('Automatische Suche fehlgeschlagen. Bitte manuell eintragen.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  async function saveWine(){
+    const weingut = $('fWeingut').value.trim();
+    const name = $('fName').value.trim();
+    const land = $('fLand').value.trim();
+    const jahrgang = $('fJahrgang').value.trim();
+    const sorte = $('fSorte').value.trim();
+    const preis = $('fPreis').value.trim();
+    const trinkzeitraum = $('fTrinkzeitraum').value.trim();
+    if(!weingut && !sorte && !name){
+      alert('Bitte mindestens Weingut, Weinname oder Sorte angeben.');
+      return;
+    }
+    if(editingWineId){
+      const w = wines.find(x=>x.id===editingWineId);
+      if(w){ w.weingut=weingut; w.name=name; w.land=land; w.jahrgang=jahrgang; w.sorte=sorte; w.preis=preis; w.trinkzeitraum=trinkzeitraum; }
+    } else {
+      const bestand = Math.max(0, parseInt($('fBestand').value || '0', 10) || 0);
+      const newWine = { id: uid(), weingut, name, land, jahrgang, sorte, preis, trinkzeitraum, bestand };
+      wines.push(newWine);
+      if(bestand > 0){
+        movements.push({ id: uid(), wineId: newWine.id, type:'in', qty: bestand, note:'Ersterfassung', ts: Date.now() });
+        await saveMovements();
+      }
+    }
+    await saveWines();
+    closeWineModal();
+    render();
+  }
+
+  function deleteWine(id){
+    const w = wines.find(x=>x.id===id);
+    if(!w) return;
+    if(!confirm(`„${w.name || w.weingut || w.sorte}" wirklich löschen? Der Verlauf bleibt bestehen, der Bestand wird entfernt.`)) return;
+    wines = wines.filter(x=>x.id!==id);
+    saveWines();
+    render();
+  }
+
+  // ---- Movement modal ----
+  function openMoveModal(wineId, type){
+    const w = wines.find(x=>x.id===wineId);
+    if(!w) return;
+    moveContext = { wineId, type: type || 'in', qty: 1 };
+    $('moveModalTitle').textContent = (w.name || w.weingut || w.sorte) + (w.jahrgang ? ' · ' + w.jahrgang : '');
+    $('moveModalSub').textContent = `Aktueller Bestand: ${w.bestand} Flasche(n)`;
+    $('fMoveNote').value = '';
+    updateMoveTypeUI();
+    $('qtyVal').textContent = moveContext.qty;
+    $('moveModalOverlay').classList.add('open');
+  }
+  function closeMoveModal(){ $('moveModalOverlay').classList.remove('open'); }
+  function updateMoveTypeUI(){
+    $('moveTypeIn').className = moveContext.type==='in' ? 'active-in' : '';
+    $('moveTypeOut').className = moveContext.type==='out' ? 'active-out' : '';
+  }
+
+  async function confirmMove(){
+    const w = wines.find(x=>x.id===moveContext.wineId);
+    if(!w) return;
+    const qty = moveContext.qty;
+    if(moveContext.type === 'out' && qty > w.bestand){
+      alert(`Es sind nur ${w.bestand} Flasche(n) auf Lager.`);
+      return;
+    }
+    w.bestand += moveContext.type === 'in' ? qty : -qty;
+    movements.push({
+      id: uid(), wineId: w.id, type: moveContext.type, qty,
+      note: $('fMoveNote').value.trim(), ts: Date.now()
+    });
+    await saveWines();
+    await saveMovements();
+    closeMoveModal();
+    render();
+  }
+
+  // ---- Event wiring ----
+  $('openAddBtn').addEventListener('click', ()=>openWineModal(null));
+  $('fabAdd').addEventListener('click', ()=>openWineModal(null));
+  $('cancelWineBtn').addEventListener('click', closeWineModal);
+  $('saveWineBtn').addEventListener('click', saveWine);
+  $('lookupBtn').addEventListener('click', lookupWineInfo);
+  $('importBtn').addEventListener('click', ()=> $('importFileInput').click());
+  $('importFileInput').addEventListener('change', handleImportFile);
+  $('wineModalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='wineModalOverlay') closeWineModal(); });
+
+  $('cancelMoveBtn').addEventListener('click', closeMoveModal);
+  $('confirmMoveBtn').addEventListener('click', confirmMove);
+  $('moveModalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='moveModalOverlay') closeMoveModal(); });
+  $('moveTypeIn').addEventListener('click', ()=>{ moveContext.type='in'; updateMoveTypeUI(); });
+  $('moveTypeOut').addEventListener('click', ()=>{ moveContext.type='out'; updateMoveTypeUI(); });
+  $('qtyMinus').addEventListener('click', ()=>{ moveContext.qty = Math.max(1, moveContext.qty-1); $('qtyVal').textContent = moveContext.qty; });
+  $('qtyPlus').addEventListener('click', ()=>{ moveContext.qty += 1; $('qtyVal').textContent = moveContext.qty; });
+
+  $('searchInput').addEventListener('input', render);
+  $('sortSelect').addEventListener('change', render);
+
+  $('wineList').addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if(action==='in' || action==='out') openMoveModal(id, action);
+    else if(action==='edit') openWineModal(wines.find(w=>w.id===id));
+    else if(action==='delete') deleteWine(id);
+    else if(action==='history'){
+      if(openHistoryIds.has(id)) openHistoryIds.delete(id); else openHistoryIds.add(id);
+      render();
+    }
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){ closeWineModal(); closeMoveModal(); }
+  });
+
+  loadData();
+})();
+</script>
+</body>
+</html>
